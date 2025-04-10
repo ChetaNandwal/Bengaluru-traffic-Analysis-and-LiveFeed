@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Bangalore Traffic Dashboard</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <h2>Bangalore Traffic Dashboard</h2>
+
+    <div style="margin-bottom: 10px;">
+      <input id="search-input" type="text" placeholder="Enter a Bangalore location..." />
+      <button id="search-btn">Search</button>
+    </div>
+
+    <!-- Map -->
+    <div id="map" style="height: 500px; width: 100%;"></div>
+
+    <!-- Traffic Info Panel -->
+    <div id="traffic-info" class="info-panel">Traffic Insights will appear here after search...</div>
+    <div id="live-traffic-info" style="margin-top: 10px; font-weight: bold;"></div>
+
+    <script>
+      let userMarker;
+      let map;
+      let autocomplete;
+
+      function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 12,
+          center: { lat: 12.9716, lng: 77.5946 },
+        });
+
+        const trafficLayer = new google.maps.TrafficLayer();
+        trafficLayer.setMap(map);
+
+        const input = document.getElementById("search-input");
+        autocomplete = new google.maps.places.Autocomplete(input);
+        autocomplete.bindTo("bounds", map);
+
+        document.getElementById("search-btn").addEventListener("click", handlePlaceSearch);
+
+        input.addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            handlePlaceSearch();
+          }
+        });
+      }
+
+      function getLiveTrafficStatus() {
+        const now = new Date();
+        const hour = now.getHours();
+        const day = now.getDay();
+        const isWeekday = day >= 1 && day <= 5;
+
+        if (isWeekday && hour >= 17 && hour <= 20) {
+          return "🔴 Heavy (Rush Hour)";
+        } else if (isWeekday && hour >= 8 && hour <= 10) {
+          return "🟠 Moderate (Office Hour)";
+        } else if (!isWeekday && hour >= 11 && hour <= 14) {
+          return "🟠 Moderate (Weekend Noon)";
+        } else {
+          return "🟢 Light";
+        }
+      }
+
+      function handlePlaceSearch() {
+        const place = autocomplete.getPlace();
+        if (!place || !place.place_id) return;
+
+        const service = new google.maps.places.PlacesService(map);
+        service.getDetails({ placeId: place.place_id }, (detailedPlace, status) => {
+          if (status !== google.maps.places.PlacesServiceStatus.OK || !detailedPlace.geometry) return;
+
+          const location = detailedPlace.geometry.location;
+          map.setCenter(location);
+          map.setZoom(14);
+
+          if (userMarker) userMarker.setMap(null);
+
+          userMarker = new google.maps.Marker({
+            map: map,
+            position: location,
+            title: detailedPlace.name,
+          });
+
+          const infoWindow = new google.maps.InfoWindow({
+            content: `<strong>${detailedPlace.name}</strong>`,
+          });
+
+          userMarker.addListener("click", () => {
+            infoWindow.open(map, userMarker);
+          });
+
+          let simplifiedLocation = null;
+          const priorityTypes = ["sublocality", "neighborhood", "locality"];
+          for (const type of priorityTypes) {
+            const component = detailedPlace.address_components.find(comp => comp.types.includes(type));
+            if (component) {
+              simplifiedLocation = component.long_name;
+              break;
+            }
+          }
+          if (!simplifiedLocation) simplifiedLocation = detailedPlace.name;
+
+          fetchTrafficData(simplifiedLocation);
+          document.getElementById("live-traffic-info").textContent = `🚦 Live Traffic: ${getLiveTrafficStatus()}`;
+        });
+      }
+
+      function fetchTrafficData(area) {
+        fetch(`http://localhost:8000/traffic/${encodeURIComponent(area)}`)
+          .then(res => {
+            if (!res.ok) {
+              throw new Error("No data found");
+            }
+            return res.json();
+          })
+          .then(data => {
+            const infoPanel = document.getElementById("traffic-info");
+            infoPanel.innerHTML = `
+              <strong>${data.area}</strong><br>
+              📊 Avg Volume: ${data.avg_traffic_volume} vehicles/day<br>
+              🚧 Avg Congestion Level: ${data.avg_congestion}%<br>
+              📅 Days Recorded: ${data.days_recorded} days
+            `;
+
+          })
+          .catch(() => {
+            document.getElementById("traffic-info").innerHTML =
+              `⚠️ No historical data available for this area.`;
+          });
+      }
+    </script>
+
+    <!-- Google Maps API -->
+    <script
+      async
+      defer
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAqD0RG3h_-_k_8KqydqstdHNS_vN8nyKU&callback=initMap&libraries=places"
+    ></script>
+  </body>
+</html>
