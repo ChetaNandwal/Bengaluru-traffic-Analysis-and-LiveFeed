@@ -3,6 +3,7 @@ from pyspark.sql.functions import (
     col, year, month, dayofmonth,
     to_date, dayofweek
 )
+# from urllib.parse import urlparse
 
 # 1. Start Spark session
 spark = SparkSession.builder.appName("Bangalore Traffic Dashboard").getOrCreate()
@@ -34,14 +35,17 @@ df_final = df_cleaned.select(
     "TrafficVolume", "Average Speed", "Congestion Level"
 )
 
-# 8. Save to PostgreSQL
 def save_to_postgres(df):
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise Exception("DATABASE_URL not set")
+
+    db_url = db_url.replace("postgres://", "jdbc:postgresql://")
+
     df.write \
         .format("jdbc") \
-        .option("url", "jdbc:postgresql://localhost:5432/DATABASE_NAME") \
-        .option("dbtable", "TABLE_NAME") \
-        .option("user", "postgres") \
-        .option("password", "DBPASS") \
+        .option("url", db_url) \
+        .option("dbtable", "traffic_data") \
         .option("driver", "org.postgresql.Driver") \
         .mode("overwrite") \
         .save()

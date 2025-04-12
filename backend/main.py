@@ -2,6 +2,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 import os
+from fastapi.staticfiles import StaticFiles
+from urllib.parse import urlparse
+from fastapi.templating import Jinja2Templates
+from fastapi.requests import Request
+
+templates = Jinja2Templates(directory="frontend")
 
 app = FastAPI()
 
@@ -14,14 +20,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Database connection
+@app.get("/")
+def serve_index(request: Request):
+    api_key = os.getenv("MAPS_API_KEY")
+    return templates.TemplateResponse("index.html", {"request": request, "api_key": api_key})
+
 def get_connection():
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise Exception("DATABASE_URL is not set")
+
+    result = urlparse(db_url)
     return psycopg2.connect(
-        dbname="trafficdb",
-        user="postgres",
-        password="chetan",
-        host="localhost",
-        port="5432"
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port
     )
 
 @app.get("/traffic/{area}")

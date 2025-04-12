@@ -111,7 +111,8 @@
       }
 
       function fetchTrafficData(area) {
-        fetch(`http://localhost:8000/traffic/${encodeURIComponent(area)}`)
+        fetch(`/traffic/${encodeURIComponent(area)}`)
+
           .then(res => {
             if (!res.ok) {
               throw new Error("No data found");
@@ -139,7 +140,7 @@
     <script
       async
       defer
-      src="https://maps.googleapis.com/maps/api/js?key=API_KEY_&callback=initMap&libraries=places"
+      src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap&libraries=places"
     ></script>
   </body>
 </html>
