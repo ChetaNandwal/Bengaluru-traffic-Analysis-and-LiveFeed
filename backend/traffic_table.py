@@ -1,6 +1,9 @@
 import psycopg2
 import os
 from urllib.parse import urlparse
+from dotenv import load_dotenv
+load_dotenv()
+
 
 # Updated connection using DATABASE_URL
 def get_connection():
@@ -26,13 +29,14 @@ def create_table():
         CREATE TABLE IF NOT EXISTS traffic_data (
             id SERIAL PRIMARY KEY,
             area TEXT,
-            timestamp TIMESTAMP,
-            hour INT,
+            date DATE,
             day INT,
             month INT,
             year INT,
             is_weekend BOOLEAN,
-            traffic_level FLOAT
+            trafficvolume FLOAT,
+            average_speed FLOAT,
+            congestion_level FLOAT
         );
     """)
 

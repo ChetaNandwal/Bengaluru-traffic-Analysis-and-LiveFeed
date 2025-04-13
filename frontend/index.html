@@ -4,7 +4,7 @@
     <title>Bangalore Traffic Dashboard</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="/static/style.css" />
   </head>
   <body>
     <h2>Bangalore Traffic Dashboard</h2>
@@ -104,6 +104,8 @@
             }
           }
           if (!simplifiedLocation) simplifiedLocation = detailedPlace.name;
+          
+          console.log("📦 Final area sent to backend:", simplifiedLocation);
 
           fetchTrafficData(simplifiedLocation);
           document.getElementById("live-traffic-info").textContent = `🚦 Live Traffic: ${getLiveTrafficStatus()}`;
@@ -123,7 +125,7 @@
             const infoPanel = document.getElementById("traffic-info");
             infoPanel.innerHTML = `
               <strong>${data.area}</strong><br>
-              📊 Avg Volume: ${data.avg_traffic_volume} vehicles/day<br>
+             
               🚧 Avg Congestion Level: ${data.avg_congestion}%<br>
               📅 Days Recorded: ${data.days_recorded} days
             `;
@@ -140,7 +142,7 @@
     <script
       async
       defer
-      src="https://maps.googleapis.com/maps/api/js?key={{ api_key }}&callback=initMap&libraries=places"
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAqD0RG3h_-_k_8KqydqstdHNS_vN8nyKU&callback=initMap&libraries=places"
     ></script>
   </body>
 </html>

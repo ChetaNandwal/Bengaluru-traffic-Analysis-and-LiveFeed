@@ -6,6 +6,15 @@ from fastapi.staticfiles import StaticFiles
 from urllib.parse import urlparse
 from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
+import traceback
+from dotenv import load_dotenv
+load_dotenv()
+
+db_url = os.getenv("DATABASE_URL")
+
+
+
+
 
 templates = Jinja2Templates(directory="frontend")
 
@@ -14,7 +23,7 @@ app = FastAPI()
 # Enable CORS so frontend can talk to backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["http://localhost:8000"] if you prefer
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,6 +33,9 @@ app.add_middleware(
 def serve_index(request: Request):
     api_key = os.getenv("MAPS_API_KEY")
     return templates.TemplateResponse("index.html", {"request": request, "api_key": api_key})
+
+# Serve static files like styles.css
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
 
 def get_connection():
     db_url = os.getenv("DATABASE_URL")
@@ -47,25 +59,29 @@ def get_traffic_data(area: str):
 
         query = """
             SELECT 
-                AVG("TrafficVolume") AS avg_volume,
-                AVG("Congestion Level") AS avg_congestion,
-                COUNT(DISTINCT "Date") AS days_recorded
+                area,
+                AVG(congestion_level) as avg_congestion,
+                COUNT(DISTINCT date) as days_recorded
             FROM traffic_data
-            WHERE LOWER("Area") = LOWER(%s);
+            WHERE LOWER(area) LIKE %s
+            GROUP BY area;
         """
-        cur.execute(query, (area,))
+
+        cur.execute(query, (f"%{area.lower()}%",))  # ✅ Fixed: matches %s placeholder
         result = cur.fetchone()
+
+        cur.close()
         conn.close()
 
-        if not result or result[0] is None:
-            raise HTTPException(status_code=404, detail="No data found for this area.")
-
-        return {
-            "area": area,
-            "avg_traffic_volume": round(result[0], 2),
-            "avg_congestion": round(result[1], 2),
-            "days_recorded": result[2]
-        }
+        if result:
+            return {
+                "area": result[0],
+                "avg_congestion": round(result[1], 2),
+                "days_recorded": result[2]
+            }
+        else:
+            raise HTTPException(status_code=404, detail="No data found")
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print("❌ Error:", e)
+        raise HTTPException(status_code=500, detail="Internal server error")
